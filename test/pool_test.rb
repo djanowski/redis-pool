@@ -38,7 +38,52 @@ test "Pool" do |r|
   teardown(r)
 end
 
+test "MULTI return value with WATCH" do |r|
+  r.del("foo")
+
+  r.pool.with do
+    r.watch("foo", "bar")
+
+    assert r.multi { r.set("foo", "bar") }
+  end
+
+  assert_equal r.get("foo"), "bar"
+
+  teardown(r)
+end
+
 test "Pipelining" do |r|
+  r.del("foo")
+
+  catch(:out) do
+    r.pipelined do
+      r.set("foo", "bar")
+      throw(:out)
+    end
+  end
+
+  assert_equal r.get("foo"), nil
+
+  teardown(r)
+end
+
+test "Pipelining with nesting" do |r|
+  r.del("foo")
+
+  r.pipelined do
+    r.del("foo")
+
+    r.pipelined do
+      r.set("foo", "bar")
+    end
+  end
+
+  assert_equal r.get("foo"), "bar"
+
+  teardown(r)
+end
+
+test "Pipelining contention" do |r|
   threads = Array.new(100) do
     Thread.new do
       10.times do

@@ -14,8 +14,12 @@ class Redis::Pool < Redis
   end
 
   def synchronize
-    @pool.with do |client|
-      _with_client(client) { yield(client) }
+    if current = Thread.current[@id]
+      yield(current)
+    else
+      @pool.with do |client|
+        _with_client(client) { yield(client) }
+      end
     end
   end
 
@@ -33,24 +37,15 @@ class Redis::Pool < Redis
 
   def multi
     raise ArgumentError, "Redis::Pool#multi can only be called with a block" unless block_given?
-
-    pipeline = Pipeline::Multi.new
-
-    _with_client(pipeline) do |client|
-      yield(client)
-    end
-
-    synchronize do |client|
-      client.call_pipeline(pipeline)
-    end
+    super
   end
 
 protected
 
   def _with_client(client)
-    Thread.current[@id] = client
+    old, Thread.current[@id] = Thread.current[@id], client
     yield(client)
   ensure
-    Thread.current[@id] = nil
+    Thread.current[@id] = old
   end
 end
