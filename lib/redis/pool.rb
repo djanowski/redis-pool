@@ -2,7 +2,7 @@ require "connection_pool"
 require "redis"
 
 class Redis::Pool < Redis
-  VERSION = "0.1.0"
+  VERSION = "0.1.1"
 
   attr :pool
 
